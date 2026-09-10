@@ -6,15 +6,7 @@ struct CpuSample {
     idle: u64,
 }
 
-fn read_cpu_sample() -> CpuSample {
-    let contents =
-        fs::read_to_string("/proc/stat").expect("failed to read /proc/stat");
-
-    let line = contents
-        .lines()
-        .find(|line| line.starts_with("cpu "))
-        .expect("CPU line not found");
-
+fn parse_cpu_line(line: &str) -> CpuSample {
     let values: Vec<u64> = line
         .split_whitespace()
         .skip(1)
@@ -25,6 +17,33 @@ fn read_cpu_sample() -> CpuSample {
     let total = values.iter().sum();
 
     CpuSample { total, idle }
+}
+
+fn read_cpu_samples() -> Vec<(String, CpuSample)> {
+    let contents =
+        fs::read_to_string("/proc/stat").expect("failed to read /proc/stat");
+
+    contents
+        .lines()
+        .filter(|line| {
+            let mut parts = line.split_whitespace();
+
+            match parts.next() {
+                Some(name) if name == "cpu" => true,
+                Some(name) => name.starts_with("cpu") && name[3..].parse::<usize>().is_ok(),
+                None => false,
+            }
+        })
+        .map(|line| {
+            let name = line
+                .split_whitespace()
+                .next()
+                .expect("CPU name missing")
+                .to_string();
+
+            (name, parse_cpu_line(line))
+        })
+        .collect()
 }
 
 fn calculate_cpu_usage(previous: CpuSample, current: CpuSample) -> f64 {
@@ -74,17 +93,28 @@ fn read_memory_usage() -> (u64, u64, f64) {
 }
 
 fn main() {
-    let previous = read_cpu_sample();
+    let previous = read_cpu_samples();
 
     thread::sleep(Duration::from_secs(1));
 
-    let current = read_cpu_sample();
+    let current = read_cpu_samples();
 
-    let cpu_usage = calculate_cpu_usage(previous, current);
+    let total_cpu = calculate_cpu_usage(previous[0].1, current[0].1);
+
+    println!("=== CPU ===");
+    println!("Total usage: {:.2}%", total_cpu);
+
+    for ((name, previous_sample), (_, current_sample)) in
+        previous.iter().skip(1).zip(current.iter().skip(1))
+    {
+        let usage = calculate_cpu_usage(*previous_sample, *current_sample);
+        println!("{name}: {:.2}%", usage);
+    }
+
     let (memory_total, memory_used, memory_usage) = read_memory_usage();
 
-    println!("CPU usage: {:.2}%", cpu_usage);
-    println!("Memory usage: {:.2}%", memory_usage);
-    println!("Memory used: {} MB", memory_used / 1024);
-    println!("Memory total: {} MB", memory_total / 1024);
+    println!("\n=== MEMORY ===");
+    println!("Usage: {:.2}%", memory_usage);
+    println!("Used: {} MB", memory_used / 1024);
+    println!("Total: {} MB", memory_total / 1024);
 }
