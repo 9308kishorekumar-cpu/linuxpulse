@@ -1,6 +1,7 @@
+use serde::Serialize;
 use std::{fs, path::Path};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct GpuSample {
     pub utilization_percent: f64,
     pub vram_used: u64,

@@ -1,6 +1,7 @@
+use serde::Serialize;
 use std::{fs, path::Path};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,

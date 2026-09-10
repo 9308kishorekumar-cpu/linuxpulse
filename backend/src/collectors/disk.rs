@@ -1,15 +1,16 @@
+use serde::Serialize;
 use std::fs;
 use std::path::Path;
 
 use nix::sys::statvfs::statvfs;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct DiskSample {
     pub read_sectors: u64,
     pub write_sectors: u64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct FilesystemUsage {
     pub total_bytes: u64,
     pub used_bytes: u64,

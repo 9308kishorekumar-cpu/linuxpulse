@@ -1,6 +1,7 @@
+use serde::Serialize;
 use std::fs;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct MemoryUsage {
     pub total_bytes: u64,
     pub used_bytes: u64,

@@ -1,6 +1,7 @@
+use serde::Serialize;
 use std::fs;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ThermalZone {
     pub name: String,
     pub temperature_celsius: f64,
