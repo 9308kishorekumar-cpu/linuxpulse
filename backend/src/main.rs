@@ -1,5 +1,7 @@
 use std::{fs, path::Path, thread, time::Duration};
 
+use nix::ifaddrs::getifaddrs;
+
 
 #[derive(Debug, Clone, Copy)]
 struct CpuSample {
@@ -11,6 +13,13 @@ struct CpuSample {
 struct DiskSample {
     read_sectors: u64,
     write_sectors: u64,
+}
+
+#[derive(Debug, Clone)]
+struct NetworkSample {
+    name: String,
+    rx_bytes: u64,
+    tx_bytes: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +55,63 @@ fn read_total_cpu() -> CpuSample {
         .expect("CPU line not found");
 
     parse_cpu_line(line)
+}
+
+fn read_interface_addresses() -> Vec<(String, String)> {
+    let mut addresses = Vec::new();
+
+    let Ok(interfaces) = getifaddrs() else {
+        return addresses;
+    };
+
+    for interface in interfaces {
+        let Some(address) = interface.address else {
+            continue;
+        };
+
+        let address = if let Some(inet) = address.as_sockaddr_in() {
+            inet.ip().to_string()
+        } else if let Some(inet6) = address.as_sockaddr_in6() {
+            inet6.ip().to_string()
+        } else {
+            continue;
+        };
+
+        addresses.push((interface.interface_name, address));
+    }
+
+    addresses
+}
+
+fn read_network_samples() -> Vec<NetworkSample> {
+    let contents =
+        fs::read_to_string("/proc/net/dev").expect("failed to read /proc/net/dev");
+
+    let mut interfaces = Vec::new();
+
+    for line in contents.lines().skip(2) {
+        let Some((name, values)) = line.split_once(':') else {
+            continue;
+        };
+
+        let name = name.trim().to_string();
+        let fields: Vec<&str> = values.split_whitespace().collect();
+
+        if fields.len() < 9 {
+            continue;
+        }
+
+        let rx_bytes = fields[0].parse::<u64>().unwrap_or(0);
+        let tx_bytes = fields[8].parse::<u64>().unwrap_or(0);
+
+        interfaces.push(NetworkSample {
+            name,
+            rx_bytes,
+            tx_bytes,
+        });
+    }
+
+    interfaces
 }
 
 fn read_disk_sample() -> DiskSample {
@@ -227,12 +293,14 @@ fn main() {
     let previous_cpu = read_total_cpu();
     let previous_processes = read_processes();
     let previous_disk = read_disk_sample();
+    let previous_network = read_network_samples();
 
     thread::sleep(Duration::from_secs(1));
 
     let current_cpu = read_total_cpu();
     let current_processes = read_processes();
     let current_disk = read_disk_sample();
+    let current_network = read_network_samples();
 
     let total_cpu = calculate_cpu_usage(previous_cpu, current_cpu);
     let system_cpu_delta = current_cpu.total - previous_cpu.total;
@@ -247,9 +315,27 @@ fn main() {
         .saturating_sub(previous_disk.write_sectors)
         * 512;
 
+    let previous_network_by_name: std::collections::HashMap<&str, &NetworkSample> =
+        previous_network
+            .iter()
+            .map(|interface| (interface.name.as_str(), interface))
+            .collect();
+
+    let mut network_rates = Vec::new();
+
+    for current in &current_network {
+        if let Some(previous) = previous_network_by_name.get(current.name.as_str()) {
+            let rx_bytes = current.rx_bytes.saturating_sub(previous.rx_bytes);
+            let tx_bytes = current.tx_bytes.saturating_sub(previous.tx_bytes);
+
+            network_rates.push((current.name.as_str(), rx_bytes, tx_bytes));
+        }
+    }
+
     let (memory_total, memory_used, memory_usage) = read_memory_usage();
     let (filesystem_total, filesystem_used, filesystem_available, filesystem_usage) =
         read_filesystem_usage("/");
+    let interface_addresses = read_interface_addresses();
 
     let previous_by_pid: std::collections::HashMap<u32, &ProcessInfo> = previous_processes
         .iter()
@@ -280,6 +366,23 @@ fn main() {
     println!("Used: {:.2} GB", filesystem_used as f64 / 1024.0 / 1024.0 / 1024.0);
     println!("Available: {:.2} GB", filesystem_available as f64 / 1024.0 / 1024.0 / 1024.0);
     println!("Usage: {:.2}%", filesystem_usage);
+
+    println!("\n=== NETWORK ===");
+
+    for (name, rx_bytes, tx_bytes) in &network_rates {
+        println!(
+            "{:<8} download {:>8.2} KB/s upload {:>8.2} KB/s",
+            name,
+            *rx_bytes as f64 / 1024.0,
+            *tx_bytes as f64 / 1024.0
+        );
+
+        for (interface_name, address) in &interface_addresses {
+            if interface_name == name {
+                println!("         IP: {}", address);
+            }
+        }
+    }
 
     println!("\n=== TOP PROCESSES BY CPU ===");
 
