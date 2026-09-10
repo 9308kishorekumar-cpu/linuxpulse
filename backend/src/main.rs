@@ -1,13 +1,11 @@
+mod collectors;
+
 use std::{fs, path::Path, thread, time::Duration};
 
 use nix::ifaddrs::getifaddrs;
 
+use collectors::cpu::{calculate_cpu_usage, read_total_cpu};
 
-#[derive(Debug, Clone, Copy)]
-struct CpuSample {
-    total: u64,
-    idle: u64,
-}
 
 #[derive(Debug, Clone, Copy)]
 struct DiskSample {
@@ -51,31 +49,6 @@ struct ProcessInfo {
     memory_bytes: u64,
     cpu_time: u64,
     command: String,
-}
-
-fn parse_cpu_line(line: &str) -> CpuSample {
-    let values: Vec<u64> = line
-        .split_whitespace()
-        .skip(1)
-        .map(|value| value.parse::<u64>().expect("invalid CPU value"))
-        .collect();
-
-    let idle = values[3] + values[4];
-    let total = values.iter().sum();
-
-    CpuSample { total, idle }
-}
-
-fn read_total_cpu() -> CpuSample {
-    let contents =
-        fs::read_to_string("/proc/stat").expect("failed to read /proc/stat");
-
-    let line = contents
-        .lines()
-        .find(|line| line.starts_with("cpu "))
-        .expect("CPU line not found");
-
-    parse_cpu_line(line)
 }
 
 fn read_interface_addresses() -> Vec<(String, String)> {
@@ -381,17 +354,6 @@ fn read_processes() -> Vec<ProcessInfo> {
     }
 
     processes
-}
-
-fn calculate_cpu_usage(previous: CpuSample, current: CpuSample) -> f64 {
-    let total_delta = current.total - previous.total;
-    let idle_delta = current.idle - previous.idle;
-
-    if total_delta == 0 {
-        return 0.0;
-    }
-
-    (1.0 - (idle_delta as f64 / total_delta as f64)) * 100.0
 }
 
 fn calculate_process_cpu(
