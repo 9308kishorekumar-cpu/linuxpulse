@@ -1,9 +1,16 @@
 use std::{fs, path::Path, thread, time::Duration};
 
+
 #[derive(Debug, Clone, Copy)]
 struct CpuSample {
     total: u64,
     idle: u64,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DiskSample {
+    read_sectors: u64,
+    write_sectors: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +46,44 @@ fn read_total_cpu() -> CpuSample {
         .expect("CPU line not found");
 
     parse_cpu_line(line)
+}
+
+fn read_disk_sample() -> DiskSample {
+    let contents =
+        fs::read_to_string("/proc/diskstats").expect("failed to read /proc/diskstats");
+
+    for line in contents.lines() {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+
+        if fields.len() < 10 || fields[2] != "nvme0n1" {
+            continue;
+        }
+
+        return DiskSample {
+            read_sectors: fields[5].parse::<u64>().expect("invalid read sector count"),
+            write_sectors: fields[9].parse::<u64>().expect("invalid write sector count"),
+        };
+    }
+
+    panic!("nvme0n1 not found in /proc/diskstats");
+}
+
+fn read_filesystem_usage(path: &str) -> (u64, u64, u64, f64) {
+    let stat = nix::sys::statvfs::statvfs(path)
+        .expect("failed to read filesystem statistics");
+
+    let block_size = stat.fragment_size() as u64;
+    let total_bytes = stat.blocks() as u64 * block_size;
+    let available_bytes = stat.blocks_available() as u64 * block_size;
+    let used_bytes = total_bytes.saturating_sub(available_bytes);
+
+    let usage = if total_bytes == 0 {
+        0.0
+    } else {
+        (used_bytes as f64 / total_bytes as f64) * 100.0
+    };
+
+    (total_bytes, used_bytes, available_bytes, usage)
 }
 
 fn read_process(pid: u32) -> Option<ProcessInfo> {
@@ -181,16 +226,30 @@ fn read_memory_usage() -> (u64, u64, f64) {
 fn main() {
     let previous_cpu = read_total_cpu();
     let previous_processes = read_processes();
+    let previous_disk = read_disk_sample();
 
     thread::sleep(Duration::from_secs(1));
 
     let current_cpu = read_total_cpu();
     let current_processes = read_processes();
+    let current_disk = read_disk_sample();
 
     let total_cpu = calculate_cpu_usage(previous_cpu, current_cpu);
     let system_cpu_delta = current_cpu.total - previous_cpu.total;
 
+    let read_bytes = current_disk
+        .read_sectors
+        .saturating_sub(previous_disk.read_sectors)
+        * 512;
+
+    let write_bytes = current_disk
+        .write_sectors
+        .saturating_sub(previous_disk.write_sectors)
+        * 512;
+
     let (memory_total, memory_used, memory_usage) = read_memory_usage();
+    let (filesystem_total, filesystem_used, filesystem_available, filesystem_usage) =
+        read_filesystem_usage("/");
 
     let previous_by_pid: std::collections::HashMap<u32, &ProcessInfo> = previous_processes
         .iter()
@@ -211,6 +270,16 @@ fn main() {
 
     println!("=== CPU ===");
     println!("Total usage: {:.2}%", total_cpu);
+
+    println!("\n=== DISK I/O ===");
+    println!("Read: {:.2} MB/s", read_bytes as f64 / 1024.0 / 1024.0);
+    println!("Write: {:.2} MB/s", write_bytes as f64 / 1024.0 / 1024.0);
+
+    println!("\n=== FILESYSTEM ===");
+    println!("Total: {:.2} GB", filesystem_total as f64 / 1024.0 / 1024.0 / 1024.0);
+    println!("Used: {:.2} GB", filesystem_used as f64 / 1024.0 / 1024.0 / 1024.0);
+    println!("Available: {:.2} GB", filesystem_available as f64 / 1024.0 / 1024.0 / 1024.0);
+    println!("Usage: {:.2}%", filesystem_usage);
 
     println!("\n=== TOP PROCESSES BY CPU ===");
 
