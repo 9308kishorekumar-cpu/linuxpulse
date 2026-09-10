@@ -16,6 +16,12 @@ struct DiskSample {
 }
 
 #[derive(Debug, Clone)]
+struct ThermalZone {
+    name: String,
+    temperature_celsius: f64,
+}
+
+#[derive(Debug, Clone)]
 struct NetworkSample {
     name: String,
     rx_bytes: u64,
@@ -81,6 +87,46 @@ fn read_interface_addresses() -> Vec<(String, String)> {
     }
 
     addresses
+}
+
+fn read_thermal_zones() -> Vec<ThermalZone> {
+    let mut zones = Vec::new();
+
+    let Ok(entries) = fs::read_dir("/sys/class/thermal") else {
+        return zones;
+    };
+
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
+
+        if !name.starts_with("thermal_zone") {
+            continue;
+        }
+
+        let zone_path = entry.path();
+
+        let Ok(zone_type) = fs::read_to_string(zone_path.join("type")) else {
+            continue;
+        };
+
+        let Ok(raw_temperature) = fs::read_to_string(zone_path.join("temp")) else {
+            continue;
+        };
+
+        let Ok(raw_temperature) = raw_temperature.trim().parse::<f64>() else {
+            continue;
+        };
+
+        zones.push(ThermalZone {
+            name: zone_type.trim().to_string(),
+            temperature_celsius: raw_temperature / 1000.0,
+        });
+    }
+
+    zones
 }
 
 fn read_network_samples() -> Vec<NetworkSample> {
@@ -336,6 +382,7 @@ fn main() {
     let (filesystem_total, filesystem_used, filesystem_available, filesystem_usage) =
         read_filesystem_usage("/");
     let interface_addresses = read_interface_addresses();
+    let thermal_zones = read_thermal_zones();
 
     let previous_by_pid: std::collections::HashMap<u32, &ProcessInfo> = previous_processes
         .iter()
@@ -382,6 +429,16 @@ fn main() {
                 println!("         IP: {}", address);
             }
         }
+    }
+
+    println!("\n=== THERMAL ===");
+
+    for zone in &thermal_zones {
+        println!(
+            "{:<12} {:>6.1}°C",
+            zone.name,
+            zone.temperature_celsius
+        );
     }
 
     println!("\n=== TOP PROCESSES BY CPU ===");
