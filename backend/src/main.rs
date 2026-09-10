@@ -2,7 +2,7 @@ mod collectors;
 mod system;
 mod api;
 
-use std::{thread, time::Duration};
+use std::{sync::{Arc, RwLock}, thread, time::Duration};
 
 use axum::Router;
 use system::collector::SnapshotCollector;
@@ -10,7 +10,11 @@ use system::collector::SnapshotCollector;
 
 #[tokio::main]
 async fn main() {
-    tokio::spawn(async {
+    let shared_snapshot = Arc::new(RwLock::new(None));
+
+    let collector_state = Arc::clone(&shared_snapshot);
+
+    tokio::spawn(async move {
         let mut collector = SnapshotCollector::new();
 
         loop {
@@ -18,11 +22,15 @@ async fn main() {
 
             let snapshot = collector.collect();
 
+            if let Ok(mut current) = collector_state.write() {
+                *current = Some(snapshot.clone());
+            }
+
             println!("CPU: {:.2}%", snapshot.cpu_usage_percent);
         }
     });
 
-    let app: Router = api::router();
+    let app: Router = api::router(shared_snapshot);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
