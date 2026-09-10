@@ -356,3 +356,61 @@ h2 {
     min-width: 620px;
   }
 }
+
+
+.insights-panel {
+  margin-bottom: 14px;
+  padding: 21px;
+  border: 1px solid #202936;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(17, 23, 32, 0.96), rgba(11, 15, 21, 0.96));
+}
+
+.insight-list {
+  display: grid;
+  gap: 10px;
+}
+
+.insight {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid #273140;
+  border-radius: 12px;
+  background: rgba(8, 11, 16, 0.55);
+}
+
+.insight strong {
+  font-size: 14px;
+}
+
+.insight p {
+  margin-top: 5px;
+  color: #8290a3;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.insight > span {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.insight.warning > span {
+  color: #e8c85e;
+}
+
+.insight.critical > span {
+  color: #ff7474;
+}
+
+@media (max-width: 720px) {
+  .insight {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
