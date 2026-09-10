@@ -2,6 +2,7 @@ mod collectors;
 mod system;
 mod api;
 mod ws;
+mod insights;
 
 use std::{sync::{Arc, RwLock}, thread, time::Duration};
 
