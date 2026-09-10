@@ -9,80 +9,8 @@ use collectors::network::{read_interface_addresses, read_network_samples, Networ
 use collectors::processes::{calculate_process_cpu, read_processes, ProcessInfo};
 use collectors::temperature::read_thermal_zones;
 use collectors::gpu::read_amd_gpu;
+use collectors::services::read_service_statuses;
 
-
-#[derive(Debug, Clone)]
-struct ServiceStatus {
-    name: String,
-    active: bool,
-    failed: bool,
-    status: String,
-}
-
-fn read_service_statuses() -> Vec<ServiceStatus> {
-    let services = [
-        ("NetworkManager.service", false),
-        ("pipewire.service", true),
-        ("pipewire-pulse.service", true),
-        ("wireplumber.service", true),
-    ];
-
-    let mut statuses = Vec::new();
-
-    for (service, user_service) in services {
-        let mut command = std::process::Command::new("systemctl");
-
-        if user_service {
-            command.arg("--user");
-        }
-
-        let output = command
-            .args([
-                "show",
-                service,
-                "-p",
-                "LoadState",
-                "-p",
-                "ActiveState",
-                "-p",
-                "SubState",
-            ])
-            .output();
-
-        let Ok(output) = output else {
-            continue;
-        };
-
-        if !output.status.success() {
-            continue;
-        }
-
-        let text = String::from_utf8_lossy(&output.stdout);
-
-        let mut load_state = "";
-        let mut active_state = "";
-        let mut sub_state = "";
-
-        for line in text.lines() {
-            if let Some(value) = line.strip_prefix("LoadState=") {
-                load_state = value;
-            } else if let Some(value) = line.strip_prefix("ActiveState=") {
-                active_state = value;
-            } else if let Some(value) = line.strip_prefix("SubState=") {
-                sub_state = value;
-            }
-        }
-
-        statuses.push(ServiceStatus {
-            name: service.to_string(),
-            active: active_state == "active",
-            failed: load_state == "not-found" || active_state == "failed",
-            status: sub_state.to_string(),
-        });
-    }
-
-    statuses
-}
 
 fn main() {
     let previous_cpu = read_total_cpu();
