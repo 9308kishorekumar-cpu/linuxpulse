@@ -1,4 +1,5 @@
 mod collectors;
+mod system;
 
 use std::{thread, time::Duration};
 
