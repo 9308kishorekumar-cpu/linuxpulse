@@ -29,6 +29,14 @@ struct ThermalZone {
 }
 
 #[derive(Debug, Clone)]
+struct ServiceStatus {
+    name: String,
+    active: bool,
+    failed: bool,
+    status: String,
+}
+
+#[derive(Debug, Clone)]
 struct NetworkSample {
     name: String,
     rx_bytes: u64,
@@ -122,6 +130,71 @@ fn read_amd_gpu() -> Option<GpuSample> {
         vram_used,
         vram_total,
     })
+}
+
+fn read_service_statuses() -> Vec<ServiceStatus> {
+    let services = [
+        ("NetworkManager.service", false),
+        ("pipewire.service", true),
+        ("pipewire-pulse.service", true),
+        ("wireplumber.service", true),
+    ];
+
+    let mut statuses = Vec::new();
+
+    for (service, user_service) in services {
+        let mut command = std::process::Command::new("systemctl");
+
+        if user_service {
+            command.arg("--user");
+        }
+
+        let output = command
+            .args([
+                "show",
+                service,
+                "-p",
+                "LoadState",
+                "-p",
+                "ActiveState",
+                "-p",
+                "SubState",
+            ])
+            .output();
+
+        let Ok(output) = output else {
+            continue;
+        };
+
+        if !output.status.success() {
+            continue;
+        }
+
+        let text = String::from_utf8_lossy(&output.stdout);
+
+        let mut load_state = "";
+        let mut active_state = "";
+        let mut sub_state = "";
+
+        for line in text.lines() {
+            if let Some(value) = line.strip_prefix("LoadState=") {
+                load_state = value;
+            } else if let Some(value) = line.strip_prefix("ActiveState=") {
+                active_state = value;
+            } else if let Some(value) = line.strip_prefix("SubState=") {
+                sub_state = value;
+            }
+        }
+
+        statuses.push(ServiceStatus {
+            name: service.to_string(),
+            active: active_state == "active",
+            failed: load_state == "not-found" || active_state == "failed",
+            status: sub_state.to_string(),
+        });
+    }
+
+    statuses
 }
 
 fn read_thermal_zones() -> Vec<ThermalZone> {
@@ -419,6 +492,7 @@ fn main() {
     let interface_addresses = read_interface_addresses();
     let thermal_zones = read_thermal_zones();
     let gpu = read_amd_gpu();
+    let services = read_service_statuses();
 
     let previous_by_pid: std::collections::HashMap<u32, &ProcessInfo> = previous_processes
         .iter()
@@ -491,6 +565,25 @@ fn main() {
         );
     } else {
         println!("AMD GPU telemetry unavailable");
+    }
+
+    println!("\n=== SYSTEM HEALTH ===");
+
+    for service in &services {
+        let state = if service.failed {
+            "FAILED"
+        } else if service.active {
+            "HEALTHY"
+        } else {
+            "INACTIVE"
+        };
+
+        println!(
+            "{:<26} {:<8} ({})",
+            service.name,
+            state,
+            service.status
+        );
     }
 
     println!("\n=== TOP PROCESSES BY CPU ===");
