@@ -2,11 +2,10 @@ mod collectors;
 
 use std::{fs, path::Path, thread, time::Duration};
 
-use nix::ifaddrs::getifaddrs;
-
 use collectors::cpu::{calculate_cpu_usage, read_total_cpu};
 use collectors::memory::read_memory_usage;
 use collectors::disk::{read_disk_sample, read_filesystem_usage};
+use collectors::network::{read_interface_addresses, read_network_samples, NetworkSample};
 
 
 #[derive(Debug, Clone, Copy)]
@@ -31,13 +30,6 @@ struct ServiceStatus {
 }
 
 #[derive(Debug, Clone)]
-struct NetworkSample {
-    name: String,
-    rx_bytes: u64,
-    tx_bytes: u64,
-}
-
-#[derive(Debug, Clone)]
 struct ProcessInfo {
     pid: u32,
     name: String,
@@ -45,32 +37,6 @@ struct ProcessInfo {
     memory_bytes: u64,
     cpu_time: u64,
     command: String,
-}
-
-fn read_interface_addresses() -> Vec<(String, String)> {
-    let mut addresses = Vec::new();
-
-    let Ok(interfaces) = getifaddrs() else {
-        return addresses;
-    };
-
-    for interface in interfaces {
-        let Some(address) = interface.address else {
-            continue;
-        };
-
-        let address = if let Some(inet) = address.as_sockaddr_in() {
-            inet.ip().to_string()
-        } else if let Some(inet6) = address.as_sockaddr_in6() {
-            inet6.ip().to_string()
-        } else {
-            continue;
-        };
-
-        addresses.push((interface.interface_name, address));
-    }
-
-    addresses
 }
 
 fn read_amd_gpu() -> Option<GpuSample> {
@@ -204,37 +170,6 @@ fn read_thermal_zones() -> Vec<ThermalZone> {
     }
 
     zones
-}
-
-fn read_network_samples() -> Vec<NetworkSample> {
-    let contents =
-        fs::read_to_string("/proc/net/dev").expect("failed to read /proc/net/dev");
-
-    let mut interfaces = Vec::new();
-
-    for line in contents.lines().skip(2) {
-        let Some((name, values)) = line.split_once(':') else {
-            continue;
-        };
-
-        let name = name.trim().to_string();
-        let fields: Vec<&str> = values.split_whitespace().collect();
-
-        if fields.len() < 9 {
-            continue;
-        }
-
-        let rx_bytes = fields[0].parse::<u64>().unwrap_or(0);
-        let tx_bytes = fields[8].parse::<u64>().unwrap_or(0);
-
-        interfaces.push(NetworkSample {
-            name,
-            rx_bytes,
-            tx_bytes,
-        });
-    }
-
-    interfaces
 }
 
 fn read_process(pid: u32) -> Option<ProcessInfo> {
