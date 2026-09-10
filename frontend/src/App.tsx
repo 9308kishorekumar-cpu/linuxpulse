@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
+type Insight = {
+  severity: string
+  title: string
+  message: string
+}
+
 type SystemSnapshot = {
   cpu_usage_percent: number
   memory: {
@@ -65,6 +71,7 @@ const formatBytes = (bytes: number) => {
 function App() {
   const [snapshot, setSnapshot] = useState<SystemSnapshot | null>(null)
   const [connected, setConnected] = useState(false)
+  const [insights, setInsights] = useState<Insight[]>([])
 
   useEffect(() => {
     const socket = new WebSocket('ws://127.0.0.1:3000/api/ws')
@@ -81,9 +88,26 @@ function App() {
     }
 
     socket.onclose = () => setConnected(false)
+
+    const refreshInsights = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:3000/api/insights')
+        if (!response.ok) return
+        const data = (await response.json()) as Insight[]
+        setInsights(data)
+      } catch {
+        // Ignore temporary API failures.
+      }
+    }
+
+    refreshInsights()
+    const insightTimer = window.setInterval(refreshInsights, 1000)
     socket.onerror = () => setConnected(false)
 
-    return () => socket.close()
+    return () => {
+      socket.close()
+      window.clearInterval(insightTimer)
+    }
   }, [])
 
   if (!snapshot) {
@@ -163,6 +187,27 @@ function App() {
           </small>
         </article>
       </section>
+
+      {insights.length > 0 && (
+        <section className="insights-panel">
+          <div className="panel-title">
+            <span className="eyebrow">INSIGHTS</span>
+            <h2>What LinuxPulse noticed</h2>
+          </div>
+
+          <div className="insight-list">
+            {insights.map((insight, index) => (
+              <div className={`insight ${insight.severity}`} key={`${insight.title}-${index}`}>
+                <div>
+                  <strong>{insight.title}</strong>
+                  <p>{insight.message}</p>
+                </div>
+                <span>{insight.severity.toUpperCase()}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="dashboard-grid">
         <article className="panel">
