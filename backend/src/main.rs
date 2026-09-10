@@ -13,6 +13,7 @@ struct ProcessInfo {
     state: char,
     memory_bytes: u64,
     cpu_time: u64,
+    command: String,
 }
 
 fn parse_cpu_line(line: &str) -> CpuSample {
@@ -61,6 +62,18 @@ fn read_process(pid: u32) -> Option<ProcessInfo> {
     let utime = fields.get(11)?.parse::<u64>().ok()?;
     let stime = fields.get(12)?.parse::<u64>().ok()?;
 
+    let command = fs::read(format!("{proc_dir}/cmdline"))
+        .ok()
+        .map(|bytes| {
+            bytes
+                .split(|byte| *byte == 0)
+                .filter(|part| !part.is_empty())
+                .map(|part| String::from_utf8_lossy(part).into_owned())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .unwrap_or_default();
+
     let status = fs::read_to_string(format!("{proc_dir}/status")).ok()?;
 
     let memory_kb = status
@@ -77,6 +90,7 @@ fn read_process(pid: u32) -> Option<ProcessInfo> {
         state,
         memory_bytes: memory_kb * 1024,
         cpu_time: utime + stime,
+        command,
     })
 }
 
@@ -207,6 +221,10 @@ fn main() {
             process.memory_bytes / 1024 / 1024,
             process.state
         );
+
+        if !process.command.is_empty() {
+            println!("         command: {}", process.command);
+        }
     }
 
     let (memory_total, memory_used, memory_usage) = read_memory_usage();
