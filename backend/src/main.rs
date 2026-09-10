@@ -9,9 +9,10 @@ use system::collector::SnapshotCollector;
 fn main() {
     let mut collector = SnapshotCollector::new();
 
-    thread::sleep(Duration::from_secs(1));
+    loop {
+        thread::sleep(Duration::from_secs(1));
 
-    let snapshot = collector.collect();
+        let snapshot = collector.collect();
 
     println!("=== CPU ===");
     println!("Total usage: {:.2}%", snapshot.cpu_usage_percent);
@@ -133,4 +134,5 @@ fn main() {
     println!("Usage: {:.2}%", snapshot.memory.usage_percent);
     println!("Used: {} MB", snapshot.memory.used_bytes / 1024 / 1024);
     println!("Total: {} MB", snapshot.memory.total_bytes / 1024 / 1024);
+    }
 }
