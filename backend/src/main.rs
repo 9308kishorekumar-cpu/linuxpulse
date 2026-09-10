@@ -6,13 +6,8 @@ use nix::ifaddrs::getifaddrs;
 
 use collectors::cpu::{calculate_cpu_usage, read_total_cpu};
 use collectors::memory::read_memory_usage;
+use collectors::disk::{read_disk_sample, read_filesystem_usage};
 
-
-#[derive(Debug, Clone, Copy)]
-struct DiskSample {
-    read_sectors: u64,
-    write_sectors: u64,
-}
 
 #[derive(Debug, Clone, Copy)]
 struct GpuSample {
@@ -242,44 +237,6 @@ fn read_network_samples() -> Vec<NetworkSample> {
     interfaces
 }
 
-fn read_disk_sample() -> DiskSample {
-    let contents =
-        fs::read_to_string("/proc/diskstats").expect("failed to read /proc/diskstats");
-
-    for line in contents.lines() {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-
-        if fields.len() < 10 || fields[2] != "nvme0n1" {
-            continue;
-        }
-
-        return DiskSample {
-            read_sectors: fields[5].parse::<u64>().expect("invalid read sector count"),
-            write_sectors: fields[9].parse::<u64>().expect("invalid write sector count"),
-        };
-    }
-
-    panic!("nvme0n1 not found in /proc/diskstats");
-}
-
-fn read_filesystem_usage(path: &str) -> (u64, u64, u64, f64) {
-    let stat = nix::sys::statvfs::statvfs(path)
-        .expect("failed to read filesystem statistics");
-
-    let block_size = stat.fragment_size() as u64;
-    let total_bytes = stat.blocks() as u64 * block_size;
-    let available_bytes = stat.blocks_available() as u64 * block_size;
-    let used_bytes = total_bytes.saturating_sub(available_bytes);
-
-    let usage = if total_bytes == 0 {
-        0.0
-    } else {
-        (used_bytes as f64 / total_bytes as f64) * 100.0
-    };
-
-    (total_bytes, used_bytes, available_bytes, usage)
-}
-
 fn read_process(pid: u32) -> Option<ProcessInfo> {
     let proc_dir = format!("/proc/{pid}");
 
@@ -418,8 +375,11 @@ fn main() {
     let memory_total = memory.total_bytes;
     let memory_used = memory.used_bytes;
     let memory_usage = memory.usage_percent;
-    let (filesystem_total, filesystem_used, filesystem_available, filesystem_usage) =
-        read_filesystem_usage("/");
+    let filesystem = read_filesystem_usage("/");
+    let filesystem_total = filesystem.total_bytes;
+    let filesystem_used = filesystem.used_bytes;
+    let filesystem_available = filesystem.available_bytes;
+    let filesystem_usage = filesystem.usage_percent;
     let interface_addresses = read_interface_addresses();
     let thermal_zones = read_thermal_zones();
     let gpu = read_amd_gpu();
@@ -523,7 +483,7 @@ fn main() {
         let memory_percentage = if memory_total == 0 {
             0.0
         } else {
-            (process.memory_bytes as f64 / (memory_total * 1024) as f64) * 100.0
+            (process.memory_bytes as f64 / memory_total as f64) * 100.0
         };
 
         println!(
@@ -543,6 +503,6 @@ fn main() {
 
     println!("\n=== MEMORY ===");
     println!("Usage: {:.2}%", memory_usage);
-    println!("Used: {} MB", memory_used / 1024);
-    println!("Total: {} MB", memory_total / 1024);
+    println!("Used: {} MB", memory_used / 1024 / 1024);
+    println!("Total: {} MB", memory_total / 1024 / 1024);
 }
