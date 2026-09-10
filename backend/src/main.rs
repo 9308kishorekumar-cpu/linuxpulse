@@ -7,6 +7,7 @@ use collectors::memory::read_memory_usage;
 use collectors::disk::{read_disk_sample, read_filesystem_usage};
 use collectors::network::{read_interface_addresses, read_network_samples, NetworkSample};
 use collectors::processes::{calculate_process_cpu, read_processes, ProcessInfo};
+use collectors::temperature::read_thermal_zones;
 
 
 #[derive(Debug, Clone, Copy)]
@@ -14,12 +15,6 @@ struct GpuSample {
     utilization_percent: f64,
     vram_used: u64,
     vram_total: u64,
-}
-
-#[derive(Debug, Clone)]
-struct ThermalZone {
-    name: String,
-    temperature_celsius: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -121,46 +116,6 @@ fn read_service_statuses() -> Vec<ServiceStatus> {
     }
 
     statuses
-}
-
-fn read_thermal_zones() -> Vec<ThermalZone> {
-    let mut zones = Vec::new();
-
-    let Ok(entries) = fs::read_dir("/sys/class/thermal") else {
-        return zones;
-    };
-
-    for entry in entries.flatten() {
-        let file_name = entry.file_name();
-        let Some(name) = file_name.to_str() else {
-            continue;
-        };
-
-        if !name.starts_with("thermal_zone") {
-            continue;
-        }
-
-        let zone_path = entry.path();
-
-        let Ok(zone_type) = fs::read_to_string(zone_path.join("type")) else {
-            continue;
-        };
-
-        let Ok(raw_temperature) = fs::read_to_string(zone_path.join("temp")) else {
-            continue;
-        };
-
-        let Ok(raw_temperature) = raw_temperature.trim().parse::<f64>() else {
-            continue;
-        };
-
-        zones.push(ThermalZone {
-            name: zone_type.trim().to_string(),
-            temperature_celsius: raw_temperature / 1000.0,
-        });
-    }
-
-    zones
 }
 
 fn main() {

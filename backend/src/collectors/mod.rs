@@ -3,3 +3,4 @@ pub mod memory;
 pub mod disk;
 pub mod network;
 pub mod processes;
+pub mod temperature;
