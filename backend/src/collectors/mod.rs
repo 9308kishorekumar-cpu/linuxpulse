@@ -4,3 +4,4 @@ pub mod disk;
 pub mod network;
 pub mod processes;
 pub mod temperature;
+pub mod gpu;

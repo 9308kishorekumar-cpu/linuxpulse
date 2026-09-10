@@ -1,6 +1,6 @@
 mod collectors;
 
-use std::{fs, path::Path, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use collectors::cpu::{calculate_cpu_usage, read_total_cpu};
 use collectors::memory::read_memory_usage;
@@ -8,14 +8,8 @@ use collectors::disk::{read_disk_sample, read_filesystem_usage};
 use collectors::network::{read_interface_addresses, read_network_samples, NetworkSample};
 use collectors::processes::{calculate_process_cpu, read_processes, ProcessInfo};
 use collectors::temperature::read_thermal_zones;
+use collectors::gpu::read_amd_gpu;
 
-
-#[derive(Debug, Clone, Copy)]
-struct GpuSample {
-    utilization_percent: f64,
-    vram_used: u64,
-    vram_total: u64,
-}
 
 #[derive(Debug, Clone)]
 struct ServiceStatus {
@@ -23,34 +17,6 @@ struct ServiceStatus {
     active: bool,
     failed: bool,
     status: String,
-}
-
-fn read_amd_gpu() -> Option<GpuSample> {
-    let device = Path::new("/sys/class/drm/card2/device");
-
-    let utilization = fs::read_to_string(device.join("gpu_busy_percent"))
-        .ok()?
-        .trim()
-        .parse::<f64>()
-        .ok()?;
-
-    let vram_used = fs::read_to_string(device.join("mem_info_vram_used"))
-        .ok()?
-        .trim()
-        .parse::<u64>()
-        .ok()?;
-
-    let vram_total = fs::read_to_string(device.join("mem_info_vram_total"))
-        .ok()?
-        .trim()
-        .parse::<u64>()
-        .ok()?;
-
-    Some(GpuSample {
-        utilization_percent: utilization,
-        vram_used,
-        vram_total,
-    })
 }
 
 fn read_service_statuses() -> Vec<ServiceStatus> {
