@@ -15,6 +15,13 @@ struct DiskSample {
     write_sectors: u64,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct GpuSample {
+    utilization_percent: f64,
+    vram_used: u64,
+    vram_total: u64,
+}
+
 #[derive(Debug, Clone)]
 struct ThermalZone {
     name: String,
@@ -87,6 +94,34 @@ fn read_interface_addresses() -> Vec<(String, String)> {
     }
 
     addresses
+}
+
+fn read_amd_gpu() -> Option<GpuSample> {
+    let device = Path::new("/sys/class/drm/card2/device");
+
+    let utilization = fs::read_to_string(device.join("gpu_busy_percent"))
+        .ok()?
+        .trim()
+        .parse::<f64>()
+        .ok()?;
+
+    let vram_used = fs::read_to_string(device.join("mem_info_vram_used"))
+        .ok()?
+        .trim()
+        .parse::<u64>()
+        .ok()?;
+
+    let vram_total = fs::read_to_string(device.join("mem_info_vram_total"))
+        .ok()?
+        .trim()
+        .parse::<u64>()
+        .ok()?;
+
+    Some(GpuSample {
+        utilization_percent: utilization,
+        vram_used,
+        vram_total,
+    })
 }
 
 fn read_thermal_zones() -> Vec<ThermalZone> {
@@ -383,6 +418,7 @@ fn main() {
         read_filesystem_usage("/");
     let interface_addresses = read_interface_addresses();
     let thermal_zones = read_thermal_zones();
+    let gpu = read_amd_gpu();
 
     let previous_by_pid: std::collections::HashMap<u32, &ProcessInfo> = previous_processes
         .iter()
@@ -439,6 +475,22 @@ fn main() {
             zone.name,
             zone.temperature_celsius
         );
+    }
+
+    println!("\n=== GPU ===");
+
+    if let Some(gpu) = gpu {
+        let vram_used_mb = gpu.vram_used as f64 / 1024.0 / 1024.0;
+        let vram_total_mb = gpu.vram_total as f64 / 1024.0 / 1024.0;
+
+        println!("AMD GPU usage: {:.1}%", gpu.utilization_percent);
+        println!(
+            "VRAM: {:.0} / {:.0} MB",
+            vram_used_mb,
+            vram_total_mb
+        );
+    } else {
+        println!("AMD GPU telemetry unavailable");
     }
 
     println!("\n=== TOP PROCESSES BY CPU ===");
