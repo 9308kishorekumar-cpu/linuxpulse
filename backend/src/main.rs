@@ -190,6 +190,8 @@ fn main() {
     let total_cpu = calculate_cpu_usage(previous_cpu, current_cpu);
     let system_cpu_delta = current_cpu.total - previous_cpu.total;
 
+    let (memory_total, memory_used, memory_usage) = read_memory_usage();
+
     let previous_by_pid: std::collections::HashMap<u32, &ProcessInfo> = previous_processes
         .iter()
         .map(|process| (process.pid, process))
@@ -213,12 +215,19 @@ fn main() {
     println!("\n=== TOP PROCESSES BY CPU ===");
 
     for (cpu, process) in processes.iter().take(10) {
+        let memory_percentage = if memory_total == 0 {
+            0.0
+        } else {
+            (process.memory_bytes as f64 / (memory_total * 1024) as f64) * 100.0
+        };
+
         println!(
-            "{:<8} {:<25} CPU {:>6.2}% memory {:>4} MB state={}",
+            "{:<8} {:<25} CPU {:>6.2}% memory {:>4} MB ({:>5.2}%) state={}",
             process.pid,
             process.name,
             cpu,
             process.memory_bytes / 1024 / 1024,
+            memory_percentage,
             process.state
         );
 
@@ -226,8 +235,6 @@ fn main() {
             println!("         command: {}", process.command);
         }
     }
-
-    let (memory_total, memory_used, memory_usage) = read_memory_usage();
 
     println!("\n=== MEMORY ===");
     println!("Usage: {:.2}%", memory_usage);
