@@ -1,120 +1,85 @@
-use std::{fs, thread, time::Duration};
+use std::{fs, path::Path};
 
-#[derive(Debug, Clone, Copy)]
-struct CpuSample {
-    total: u64,
-    idle: u64,
+#[derive(Debug)]
+struct ProcessInfo {
+    pid: u32,
+    name: String,
+    state: char,
+    memory_bytes: u64,
 }
 
-fn parse_cpu_line(line: &str) -> CpuSample {
-    let values: Vec<u64> = line
-        .split_whitespace()
-        .skip(1)
-        .map(|value| value.parse::<u64>().expect("invalid CPU value"))
-        .collect();
+fn read_process(pid: u32) -> Option<ProcessInfo> {
+    let proc_dir = format!("/proc/{pid}");
 
-    let idle = values[3] + values[4];
-    let total = values.iter().sum();
+    let stat = fs::read_to_string(format!("{proc_dir}/stat")).ok()?;
 
-    CpuSample { total, idle }
-}
+    let open_paren = stat.find('(')?;
+    let close_paren = stat.rfind(')')?;
 
-fn read_cpu_samples() -> Vec<(String, CpuSample)> {
-    let contents =
-        fs::read_to_string("/proc/stat").expect("failed to read /proc/stat");
+    let name = stat[open_paren + 1..close_paren].to_string();
 
-    contents
+    let after_name = stat.get(close_paren + 2..)?;
+    let mut fields = after_name.split_whitespace();
+
+    let state = fields.next()?.chars().next()?;
+
+    let status = fs::read_to_string(format!("{proc_dir}/status")).ok()?;
+
+    let memory_kb = status
         .lines()
-        .filter(|line| {
-            let mut parts = line.split_whitespace();
-
-            match parts.next() {
-                Some(name) if name == "cpu" => true,
-                Some(name) => name.starts_with("cpu") && name[3..].parse::<usize>().is_ok(),
-                None => false,
-            }
+        .find_map(|line| {
+            let value = line.strip_prefix("VmRSS:")?;
+            value.split_whitespace().next()?.parse::<u64>().ok()
         })
-        .map(|line| {
-            let name = line
-                .split_whitespace()
-                .next()
-                .expect("CPU name missing")
-                .to_string();
+        .unwrap_or(0);
 
-            (name, parse_cpu_line(line))
-        })
-        .collect()
+    Some(ProcessInfo {
+        pid,
+        name,
+        state,
+        memory_bytes: memory_kb * 1024,
+    })
 }
 
-fn calculate_cpu_usage(previous: CpuSample, current: CpuSample) -> f64 {
-    let total_delta = current.total - previous.total;
-    let idle_delta = current.idle - previous.idle;
+fn read_processes() -> Vec<ProcessInfo> {
+    let mut processes = Vec::new();
 
-    if total_delta == 0 {
-        return 0.0;
-    }
+    let entries = fs::read_dir(Path::new("/proc")).expect("failed to read /proc");
 
-    (1.0 - (idle_delta as f64 / total_delta as f64)) * 100.0
-}
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
 
-fn read_memory_usage() -> (u64, u64, f64) {
-    let contents =
-        fs::read_to_string("/proc/meminfo").expect("failed to read /proc/meminfo");
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
 
-    let mut total_kb = 0;
-    let mut available_kb = 0;
+        let Ok(pid) = name.parse::<u32>() else {
+            continue;
+        };
 
-    for line in contents.lines() {
-        if let Some(value) = line.strip_prefix("MemTotal:") {
-            total_kb = value
-                .split_whitespace()
-                .next()
-                .expect("MemTotal value missing")
-                .parse::<u64>()
-                .expect("invalid MemTotal value");
-        } else if let Some(value) = line.strip_prefix("MemAvailable:") {
-            available_kb = value
-                .split_whitespace()
-                .next()
-                .expect("MemAvailable value missing")
-                .parse::<u64>()
-                .expect("invalid MemAvailable value");
+        if let Some(process) = read_process(pid) {
+            processes.push(process);
         }
     }
 
-    if total_kb == 0 {
-        return (0, 0, 0.0);
-    }
+    processes.sort_by_key(|process| std::cmp::Reverse(process.memory_bytes));
 
-    let used_kb = total_kb.saturating_sub(available_kb);
-    let usage = (used_kb as f64 / total_kb as f64) * 100.0;
-
-    (total_kb, used_kb, usage)
+    processes
 }
 
 fn main() {
-    let previous = read_cpu_samples();
+    let processes = read_processes();
 
-    thread::sleep(Duration::from_secs(1));
+    println!("Processes found: {}", processes.len());
+    println!();
 
-    let current = read_cpu_samples();
-
-    let total_cpu = calculate_cpu_usage(previous[0].1, current[0].1);
-
-    println!("=== CPU ===");
-    println!("Total usage: {:.2}%", total_cpu);
-
-    for ((name, previous_sample), (_, current_sample)) in
-        previous.iter().skip(1).zip(current.iter().skip(1))
-    {
-        let usage = calculate_cpu_usage(*previous_sample, *current_sample);
-        println!("{name}: {:.2}%", usage);
+    for process in processes.iter().take(10) {
+        println!(
+            "{:<8} {:<25} state={} memory={} MB",
+            process.pid,
+            process.name,
+            process.state,
+            process.memory_bytes / 1024 / 1024
+        );
     }
-
-    let (memory_total, memory_used, memory_usage) = read_memory_usage();
-
-    println!("\n=== MEMORY ===");
-    println!("Usage: {:.2}%", memory_usage);
-    println!("Used: {} MB", memory_used / 1024);
-    println!("Total: {} MB", memory_total / 1024);
 }
