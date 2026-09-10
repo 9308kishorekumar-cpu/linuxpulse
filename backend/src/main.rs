@@ -5,6 +5,7 @@ use std::{fs, path::Path, thread, time::Duration};
 use nix::ifaddrs::getifaddrs;
 
 use collectors::cpu::{calculate_cpu_usage, read_total_cpu};
+use collectors::memory::read_memory_usage;
 
 
 #[derive(Debug, Clone, Copy)]
@@ -370,41 +371,6 @@ fn calculate_process_cpu(
     (process_delta as f64 / system_delta as f64) * 100.0
 }
 
-fn read_memory_usage() -> (u64, u64, f64) {
-    let contents =
-        fs::read_to_string("/proc/meminfo").expect("failed to read /proc/meminfo");
-
-    let mut total_kb = 0;
-    let mut available_kb = 0;
-
-    for line in contents.lines() {
-        if let Some(value) = line.strip_prefix("MemTotal:") {
-            total_kb = value
-                .split_whitespace()
-                .next()
-                .expect("MemTotal value missing")
-                .parse::<u64>()
-                .expect("invalid MemTotal value");
-        } else if let Some(value) = line.strip_prefix("MemAvailable:") {
-            available_kb = value
-                .split_whitespace()
-                .next()
-                .expect("MemAvailable value missing")
-                .parse::<u64>()
-                .expect("invalid MemAvailable value");
-        }
-    }
-
-    if total_kb == 0 {
-        return (0, 0, 0.0);
-    }
-
-    let used_kb = total_kb.saturating_sub(available_kb);
-    let usage = (used_kb as f64 / total_kb as f64) * 100.0;
-
-    (total_kb, used_kb, usage)
-}
-
 fn main() {
     let previous_cpu = read_total_cpu();
     let previous_processes = read_processes();
@@ -448,7 +414,10 @@ fn main() {
         }
     }
 
-    let (memory_total, memory_used, memory_usage) = read_memory_usage();
+    let memory = read_memory_usage();
+    let memory_total = memory.total_bytes;
+    let memory_used = memory.used_bytes;
+    let memory_usage = memory.usage_percent;
     let (filesystem_total, filesystem_used, filesystem_available, filesystem_usage) =
         read_filesystem_usage("/");
     let interface_addresses = read_interface_addresses();
