@@ -10,6 +10,7 @@ pub fn router(state: SharedSnapshot) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/system", get(system))
+        .route("/api/ws", get(crate::ws::websocket_handler))
         .with_state(state)
 }
 

@@ -1,6 +1,7 @@
 mod collectors;
 mod system;
 mod api;
+mod ws;
 
 use std::{sync::{Arc, RwLock}, thread, time::Duration};
 
