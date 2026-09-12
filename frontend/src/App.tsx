@@ -205,6 +205,31 @@ function App() {
         </article>
       </section>
 
+      <section className="overview-strip">
+        <div className="overview-item">
+          <span>PROCESSES</span>
+          <strong>{snapshot.processes.length}</strong>
+        </div>
+
+        <div className="overview-item">
+          <span>SERVICES</span>
+          <strong>
+            {snapshot.services.filter((service) => service.active && !service.failed).length}/
+            {snapshot.services.length}
+          </strong>
+        </div>
+
+        <div className="overview-item">
+          <span>INTERFACES</span>
+          <strong>{snapshot.network.length}</strong>
+        </div>
+
+        <div className="overview-item">
+          <span>THERMAL ZONES</span>
+          <strong>{snapshot.temperatures.length}</strong>
+        </div>
+      </section>
+
       {insights.length > 0 && (
         <section className="insights-panel">
           <div className="panel-title">
