@@ -170,4 +170,3 @@ mod tests {
         assert_eq!(calculate_process_cpu(&previous, &current, 100), 0.0);
     }
 }
-

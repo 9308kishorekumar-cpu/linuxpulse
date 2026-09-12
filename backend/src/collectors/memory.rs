@@ -9,8 +9,7 @@ pub struct MemoryUsage {
 }
 
 pub fn read_memory_usage() -> MemoryUsage {
-    let contents =
-        fs::read_to_string("/proc/meminfo").expect("failed to read /proc/meminfo");
+    let contents = fs::read_to_string("/proc/meminfo").expect("failed to read /proc/meminfo");
 
     let mut total_kb = 0;
     let mut available_kb = 0;
@@ -66,4 +65,3 @@ mod tests {
         assert!((0.0..=100.0).contains(&memory.usage_percent));
     }
 }
-

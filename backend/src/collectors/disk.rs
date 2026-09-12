@@ -19,8 +19,7 @@ pub struct FilesystemUsage {
 }
 
 pub fn read_disk_sample() -> DiskSample {
-    let contents =
-        fs::read_to_string("/proc/diskstats").expect("failed to read /proc/diskstats");
+    let contents = fs::read_to_string("/proc/diskstats").expect("failed to read /proc/diskstats");
 
     for line in contents.lines() {
         let fields: Vec<&str> = line.split_whitespace().collect();
@@ -31,7 +30,9 @@ pub fn read_disk_sample() -> DiskSample {
 
         return DiskSample {
             read_sectors: fields[5].parse::<u64>().expect("invalid read sector count"),
-            write_sectors: fields[9].parse::<u64>().expect("invalid write sector count"),
+            write_sectors: fields[9]
+                .parse::<u64>()
+                .expect("invalid write sector count"),
         };
     }
 
@@ -39,8 +40,7 @@ pub fn read_disk_sample() -> DiskSample {
 }
 
 pub fn read_filesystem_usage(path: &str) -> FilesystemUsage {
-    let stat = statvfs(Path::new(path))
-        .expect("failed to read filesystem statistics");
+    let stat = statvfs(Path::new(path)).expect("failed to read filesystem statistics");
 
     let block_size = stat.fragment_size() as u64;
     let total_bytes = stat.blocks() as u64 * block_size;
@@ -87,4 +87,3 @@ mod tests {
         assert!((filesystem.usage_percent - calculated_usage).abs() < 0.000_001);
     }
 }
-

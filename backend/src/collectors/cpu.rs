@@ -20,8 +20,7 @@ fn parse_cpu_line(line: &str) -> CpuSample {
 }
 
 pub fn read_total_cpu() -> CpuSample {
-    let contents =
-        fs::read_to_string("/proc/stat").expect("failed to read /proc/stat");
+    let contents = fs::read_to_string("/proc/stat").expect("failed to read /proc/stat");
 
     let line = contents
         .lines()
@@ -80,4 +79,3 @@ mod tests {
         assert_eq!(calculate_cpu_usage(sample, sample), 0.0);
     }
 }
-

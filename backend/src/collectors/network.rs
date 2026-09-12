@@ -36,8 +36,7 @@ pub fn read_interface_addresses() -> Vec<(String, String)> {
 }
 
 pub fn read_network_samples() -> Vec<NetworkSample> {
-    let contents =
-        fs::read_to_string("/proc/net/dev").expect("failed to read /proc/net/dev");
+    let contents = fs::read_to_string("/proc/net/dev").expect("failed to read /proc/net/dev");
 
     let mut interfaces = Vec::new();
 
@@ -91,4 +90,3 @@ mod tests {
         }
     }
 }
-

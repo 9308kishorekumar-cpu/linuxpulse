@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     response::Response,
 };
@@ -20,10 +20,7 @@ pub async fn websocket_handler(
 
 async fn handle_socket(mut socket: WebSocket, state: SharedSnapshot) {
     loop {
-        let snapshot = state
-            .read()
-            .ok()
-            .and_then(|current| current.clone());
+        let snapshot = state.read().ok().and_then(|current| current.clone());
 
         if let Some(snapshot) = snapshot {
             let payload = serde_json::json!({

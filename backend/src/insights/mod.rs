@@ -64,10 +64,7 @@ pub fn analyze(snapshot: &SystemSnapshot) -> Vec<Insight> {
             insights.push(Insight {
                 severity: "critical".to_string(),
                 title: format!("Service failed: {}", service.name),
-                message: format!(
-                    "{} is reporting state '{}'.",
-                    service.name, service.status
-                ),
+                message: format!("{} is reporting state '{}'.", service.name, service.status),
             });
         }
     }
@@ -79,9 +76,7 @@ pub fn analyze(snapshot: &SystemSnapshot) -> Vec<Insight> {
 mod tests {
     use super::*;
     use crate::collectors::{
-        disk::FilesystemUsage,
-        memory::MemoryUsage,
-        services::ServiceStatus,
+        disk::FilesystemUsage, memory::MemoryUsage, services::ServiceStatus,
         temperature::ThermalZone,
     };
     use crate::system::snapshot::{DiskRate, NetworkRate, ProcessSnapshot};
@@ -190,4 +185,3 @@ mod tests {
         assert!(insights.is_empty());
     }
 }
-

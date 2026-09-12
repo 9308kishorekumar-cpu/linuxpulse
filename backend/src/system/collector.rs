@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use crate::collectors::{
-    cpu::{calculate_cpu_usage, read_total_cpu, CpuSample},
-    disk::{read_disk_sample, read_filesystem_usage, DiskSample},
+    cpu::{CpuSample, calculate_cpu_usage, read_total_cpu},
+    disk::{DiskSample, read_disk_sample, read_filesystem_usage},
     gpu::read_amd_gpu,
     memory::read_memory_usage,
-    network::{read_interface_addresses, read_network_samples, NetworkSample},
-    processes::{calculate_process_cpu, read_processes, ProcessInfo},
+    network::{NetworkSample, read_interface_addresses, read_network_samples},
+    processes::{ProcessInfo, calculate_process_cpu, read_processes},
     services::read_service_statuses,
     temperature::read_thermal_zones,
 };
@@ -81,11 +81,7 @@ impl SnapshotCollector {
                 let previous = previous_processes_by_pid.get(&current.pid)?;
 
                 Some(ProcessSnapshot {
-                    cpu_percent: calculate_process_cpu(
-                        previous,
-                        current,
-                        system_cpu_delta,
-                    ),
+                    cpu_percent: calculate_process_cpu(previous, current, system_cpu_delta),
                     process: current.clone(),
                 })
             })

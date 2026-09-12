@@ -1,15 +1,17 @@
-mod collectors;
-mod system;
 mod api;
-mod ws;
+mod collectors;
 mod insights;
+mod system;
+mod ws;
 
-use std::{sync::{Arc, RwLock}, time::Duration};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use axum::Router;
-use tower_http::cors::CorsLayer;
 use system::collector::SnapshotCollector;
-
+use tower_http::cors::CorsLayer;
 
 #[tokio::main]
 async fn main() {
@@ -33,8 +35,7 @@ async fn main() {
         }
     });
 
-    let app: Router = api::router(shared_snapshot)
-        .layer(CorsLayer::permissive());
+    let app: Router = api::router(shared_snapshot).layer(CorsLayer::permissive());
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -42,7 +43,5 @@ async fn main() {
 
     println!("LinuxPulse API listening on http://127.0.0.1:3000");
 
-    axum::serve(listener, app)
-        .await
-        .expect("server error");
+    axum::serve(listener, app).await.expect("server error");
 }

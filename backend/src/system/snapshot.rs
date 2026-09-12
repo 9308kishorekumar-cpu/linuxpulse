@@ -1,12 +1,8 @@
 use serde::Serialize;
 
 use crate::collectors::{
-    disk::FilesystemUsage,
-    gpu::GpuSample,
-    memory::MemoryUsage,
-    processes::ProcessInfo,
-    services::ServiceStatus,
-    temperature::ThermalZone,
+    disk::FilesystemUsage, gpu::GpuSample, memory::MemoryUsage, processes::ProcessInfo,
+    services::ServiceStatus, temperature::ThermalZone,
 };
 
 #[derive(Debug, Clone, Serialize)]

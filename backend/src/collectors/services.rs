@@ -89,9 +89,11 @@ mod tests {
 
             assert!(
                 service.status.is_empty()
-                    || service.status.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+                    || service
+                        .status
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '-')
             );
         }
     }
 }
-

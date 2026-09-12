@@ -1,7 +1,7 @@
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{Json, Router, extract::State, routing::get};
 
-use crate::system::snapshot::SystemSnapshot;
 use crate::insights::analyze;
+use crate::system::snapshot::SystemSnapshot;
 
 use std::sync::{Arc, RwLock};
 
@@ -20,24 +20,14 @@ async fn health() -> &'static str {
     "LinuxPulse backend is healthy"
 }
 
-async fn system(
-    State(state): State<SharedSnapshot>,
-) -> Json<Option<SystemSnapshot>> {
-    let snapshot = state
-        .read()
-        .ok()
-        .and_then(|current| current.clone());
+async fn system(State(state): State<SharedSnapshot>) -> Json<Option<SystemSnapshot>> {
+    let snapshot = state.read().ok().and_then(|current| current.clone());
 
     Json(snapshot)
 }
 
-async fn insights(
-    State(state): State<SharedSnapshot>,
-) -> Json<Vec<crate::insights::Insight>> {
-    let snapshot = state
-        .read()
-        .ok()
-        .and_then(|current| current.clone());
+async fn insights(State(state): State<SharedSnapshot>) -> Json<Vec<crate::insights::Insight>> {
+    let snapshot = state.read().ok().and_then(|current| current.clone());
 
     match snapshot {
         Some(snapshot) => Json(analyze(&snapshot)),

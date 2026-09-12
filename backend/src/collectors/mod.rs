@@ -1,8 +1,8 @@
 pub mod cpu;
-pub mod memory;
 pub mod disk;
+pub mod gpu;
+pub mod memory;
 pub mod network;
 pub mod processes;
-pub mod temperature;
-pub mod gpu;
 pub mod services;
+pub mod temperature;
