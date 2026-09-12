@@ -60,3 +60,31 @@ pub fn read_filesystem_usage(path: &str) -> FilesystemUsage {
         usage_percent,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_valid_disk_sample() {
+        let sample = read_disk_sample();
+
+        assert!(sample.read_sectors > 0 || sample.write_sectors > 0);
+    }
+
+    #[test]
+    fn reads_valid_filesystem_usage() {
+        let filesystem = read_filesystem_usage("/");
+
+        assert!(filesystem.total_bytes > 0);
+        assert!(filesystem.used_bytes <= filesystem.total_bytes);
+        assert!(filesystem.available_bytes <= filesystem.total_bytes);
+        assert!((0.0..=100.0).contains(&filesystem.usage_percent));
+
+        let calculated_usage =
+            (filesystem.used_bytes as f64 / filesystem.total_bytes as f64) * 100.0;
+
+        assert!((filesystem.usage_percent - calculated_usage).abs() < 0.000_001);
+    }
+}
+
