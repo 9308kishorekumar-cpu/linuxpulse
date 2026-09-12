@@ -453,3 +453,34 @@ h2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.insights-clear {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #1f3a32;
+  border-radius: 12px;
+  background: rgba(8, 11, 16, 0.55);
+}
+
+.insights-clear-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #31d69b;
+  box-shadow: 0 0 12px rgba(49, 214, 155, 0.55);
+}
+
+.insights-clear strong {
+  font-size: 14px;
+  color: #d9f5e9;
+}
+
+.insights-clear p {
+  margin-top: 5px;
+  color: #8290a3;
+  font-size: 12px;
+  line-height: 1.5;
+}

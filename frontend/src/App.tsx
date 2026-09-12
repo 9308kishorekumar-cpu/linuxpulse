@@ -243,13 +243,21 @@ function App() {
         </div>
       </section>
 
-      {insights.length > 0 && (
-        <section className="insights-panel">
-          <div className="panel-title">
-            <span className="eyebrow">INSIGHTS</span>
-            <h2>What LinuxPulse noticed</h2>
-          </div>
+      <section className={`insights-panel ${insights.length === 0 ? 'healthy' : ''}`}>
+        <div className="panel-title">
+          <span className="eyebrow">INSIGHTS</span>
+          <h2>What LinuxPulse noticed</h2>
+        </div>
 
+        {insights.length === 0 ? (
+          <div className="insights-clear">
+            <span className="insights-clear-dot" />
+            <div>
+              <strong>No active issues detected</strong>
+              <p>Current system telemetry is within the configured health thresholds.</p>
+            </div>
+          </div>
+        ) : (
           <div className="insight-list">
             {insights.map((insight, index) => (
               <div className={`insight ${insight.severity}`} key={`${insight.title}-${index}`}>
@@ -261,8 +269,8 @@ function App() {
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       <section className="dashboard-grid">
         <article className="panel">
