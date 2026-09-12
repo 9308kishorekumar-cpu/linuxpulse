@@ -35,3 +35,20 @@ pub fn read_amd_gpu() -> Option<GpuSample> {
         vram_total,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_valid_amd_gpu_sample_when_available() {
+        let sample = read_amd_gpu();
+
+        if let Some(gpu) = sample {
+            assert!((0.0..=100.0).contains(&gpu.utilization_percent));
+            assert!(gpu.vram_total > 0);
+            assert!(gpu.vram_used <= gpu.vram_total);
+        }
+    }
+}
+
