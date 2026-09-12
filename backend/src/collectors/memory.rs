@@ -52,3 +52,18 @@ pub fn read_memory_usage() -> MemoryUsage {
         usage_percent,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_valid_memory_usage() {
+        let memory = read_memory_usage();
+
+        assert!(memory.total_bytes > 0);
+        assert!(memory.used_bytes <= memory.total_bytes);
+        assert!((0.0..=100.0).contains(&memory.usage_percent));
+    }
+}
+
