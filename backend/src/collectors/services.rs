@@ -71,3 +71,27 @@ pub fn read_service_statuses() -> Vec<ServiceStatus> {
 
     statuses
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_valid_service_statuses() {
+        let services = read_service_statuses();
+
+        for service in services {
+            assert!(!service.name.is_empty());
+
+            if service.active {
+                assert!(!service.status.is_empty());
+            }
+
+            assert!(
+                service.status.is_empty()
+                    || service.status.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+            );
+        }
+    }
+}
+
