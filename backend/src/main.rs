@@ -7,6 +7,7 @@ mod insights;
 use std::{sync::{Arc, RwLock}, thread, time::Duration};
 
 use axum::Router;
+use tower_http::cors::CorsLayer;
 use system::collector::SnapshotCollector;
 
 
@@ -32,7 +33,8 @@ async fn main() {
         }
     });
 
-    let app: Router = api::router(shared_snapshot);
+    let app: Router = api::router(shared_snapshot)
+        .layer(CorsLayer::permissive());
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
