@@ -47,3 +47,20 @@ pub fn read_thermal_zones() -> Vec<ThermalZone> {
 
     zones
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_valid_thermal_zones() {
+        let zones = read_thermal_zones();
+
+        for zone in zones {
+            assert!(!zone.name.is_empty());
+            assert!(zone.temperature_celsius > -273.15);
+            assert!(zone.temperature_celsius < 200.0);
+        }
+    }
+}
+
