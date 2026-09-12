@@ -89,8 +89,13 @@ function App() {
 
       socket.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as SystemSnapshot
-          setSnapshot(data)
+          const data = JSON.parse(event.data) as {
+            snapshot: SystemSnapshot
+            insights: Insight[]
+          }
+
+          setSnapshot(data.snapshot)
+          setInsights(data.insights)
         } catch {
           // Ignore malformed messages.
         }
@@ -111,21 +116,6 @@ function App() {
 
     connect()
 
-    const refreshInsights = async () => {
-      try {
-        const response = await fetch('http://127.0.0.1:3000/api/insights')
-        if (!response.ok) return
-
-        const data = (await response.json()) as Insight[]
-        setInsights(data)
-      } catch {
-        // Ignore temporary API failures.
-      }
-    }
-
-    refreshInsights()
-    const insightTimer = window.setInterval(refreshInsights, 1000)
-
     return () => {
       stopped = true
 
@@ -133,7 +123,6 @@ function App() {
         window.clearTimeout(reconnectTimer)
       }
 
-      window.clearInterval(insightTimer)
       socket?.close()
     }
   }, [])
