@@ -4,7 +4,7 @@ mod api;
 mod ws;
 mod insights;
 
-use std::{sync::{Arc, RwLock}, thread, time::Duration};
+use std::{sync::{Arc, RwLock}, time::Duration};
 
 use axum::Router;
 use tower_http::cors::CorsLayer;
@@ -21,7 +21,7 @@ async fn main() {
         let mut collector = SnapshotCollector::new();
 
         loop {
-            thread::sleep(Duration::from_secs(1));
+            tokio::time::sleep(Duration::from_secs(1)).await;
 
             let snapshot = collector.collect();
 
