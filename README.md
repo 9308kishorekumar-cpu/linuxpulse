@@ -70,3 +70,14 @@ Then open `http://localhost:5173`.
 ## Project Goal
 
 LinuxPulse is a systems-focused portfolio project for understanding Linux telemetry, Rust backend development, real-time WebSocket communication, deterministic system insights, and React dashboard development.
+
+## Dashboard
+
+### Overview
+![LinuxPulse dashboard overview](docs/screenshots/dashboard-overview.png)
+
+### System health
+![LinuxPulse services](docs/screenshots/dashboard-services.png)
+
+### Processes
+![LinuxPulse processes](docs/screenshots/dashboard-processes.png)
