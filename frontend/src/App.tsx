@@ -70,21 +70,28 @@ const formatBytes = (bytes: number) => {
 
 function App() {
   const [snapshot, setSnapshot] = useState<SystemSnapshot | null>(null)
-  const [connected, setConnected] = useState(false)
+  const [connectionState, setConnectionState] = useState<'connecting' | 'live' | 'reconnecting'>('connecting')
   const [insights, setInsights] = useState<Insight[]>([])
 
   useEffect(() => {
     let socket: WebSocket | null = null
     let reconnectTimer: number | undefined
     let stopped = false
+    let hasReceivedSnapshot = false
 
     const connect = () => {
       if (stopped) return
 
+      if (hasReceivedSnapshot) {
+        setConnectionState('reconnecting')
+      } else {
+        setConnectionState('connecting')
+      }
+
       socket = new WebSocket('ws://127.0.0.1:3000/api/ws')
 
       socket.onopen = () => {
-        setConnected(true)
+        setConnectionState('live')
       }
 
       socket.onmessage = (event) => {
@@ -94,6 +101,7 @@ function App() {
             insights: Insight[]
           }
 
+          hasReceivedSnapshot = true
           setSnapshot(data.snapshot)
           setInsights(data.insights)
         } catch {
@@ -102,15 +110,16 @@ function App() {
       }
 
       socket.onclose = () => {
-        setConnected(false)
-
         if (!stopped) {
+          setConnectionState('reconnecting')
           reconnectTimer = window.setTimeout(connect, 2000)
         }
       }
 
       socket.onerror = () => {
-        setConnected(false)
+        if (hasReceivedSnapshot) {
+          setConnectionState('reconnecting')
+        }
       }
     }
 
@@ -134,12 +143,16 @@ function App() {
           <div>
             <div className="eyebrow">LINUXPULSE</div>
             <h1>System Intelligence Dashboard</h1>
-            <p className="subtitle">Connecting to live Linux telemetry...</p>
+            <p className="subtitle">
+              {connectionState === 'reconnecting'
+                ? 'Connection interrupted. Retrying live telemetry...'
+                : 'Connecting to live Linux telemetry...'}
+            </p>
           </div>
 
-          <div className="connection offline">
+          <div className={`connection ${connectionState === 'live' ? 'online' : 'offline'}`}>
             <span />
-            CONNECTING
+            {connectionState === 'reconnecting' ? 'RECONNECTING' : 'CONNECTING'}
           </div>
         </header>
       </main>
@@ -157,9 +170,9 @@ function App() {
           </p>
         </div>
 
-        <div className={`connection ${connected ? 'online' : 'offline'}`}>
+        <div className={`connection ${connectionState === 'live' ? 'online' : 'offline'}`}>
           <span />
-          {connected ? 'LIVE' : 'DISCONNECTED'}
+          {connectionState === 'live' ? 'LIVE' : 'RECONNECTING'}
         </div>
       </header>
 
