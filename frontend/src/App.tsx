@@ -74,25 +74,48 @@ function App() {
   const [insights, setInsights] = useState<Insight[]>([])
 
   useEffect(() => {
-    const socket = new WebSocket('ws://127.0.0.1:3000/api/ws')
+    let socket: WebSocket | null = null
+    let reconnectTimer: number | undefined
+    let stopped = false
 
-    socket.onopen = () => setConnected(true)
+    const connect = () => {
+      if (stopped) return
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as SystemSnapshot
-        setSnapshot(data)
-      } catch {
-        // Ignore malformed messages.
+      socket = new WebSocket('ws://127.0.0.1:3000/api/ws')
+
+      socket.onopen = () => {
+        setConnected(true)
+      }
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as SystemSnapshot
+          setSnapshot(data)
+        } catch {
+          // Ignore malformed messages.
+        }
+      }
+
+      socket.onclose = () => {
+        setConnected(false)
+
+        if (!stopped) {
+          reconnectTimer = window.setTimeout(connect, 2000)
+        }
+      }
+
+      socket.onerror = () => {
+        setConnected(false)
       }
     }
 
-    socket.onclose = () => setConnected(false)
+    connect()
 
     const refreshInsights = async () => {
       try {
         const response = await fetch('http://127.0.0.1:3000/api/insights')
         if (!response.ok) return
+
         const data = (await response.json()) as Insight[]
         setInsights(data)
       } catch {
@@ -102,11 +125,16 @@ function App() {
 
     refreshInsights()
     const insightTimer = window.setInterval(refreshInsights, 1000)
-    socket.onerror = () => setConnected(false)
 
     return () => {
-      socket.close()
+      stopped = true
+
+      if (reconnectTimer !== undefined) {
+        window.clearTimeout(reconnectTimer)
+      }
+
       window.clearInterval(insightTimer)
+      socket?.close()
     }
   }, [])
 
