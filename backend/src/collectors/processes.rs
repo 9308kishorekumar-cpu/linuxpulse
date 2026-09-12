@@ -101,3 +101,73 @@ pub fn calculate_process_cpu(
 
     (process_delta as f64 / system_delta as f64) * 100.0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_current_process() {
+        let pid = std::process::id();
+        let process = read_process(pid).expect("current process should be readable");
+
+        assert_eq!(process.pid, pid);
+        assert!(!process.name.is_empty());
+        assert!(!process.command.is_empty());
+    }
+
+    #[test]
+    fn calculates_process_cpu() {
+        let previous = ProcessInfo {
+            pid: 1,
+            name: "test".to_string(),
+            state: 'S',
+            memory_bytes: 0,
+            cpu_time: 100,
+            command: "test".to_string(),
+        };
+
+        let current = ProcessInfo {
+            cpu_time: 130,
+            ..previous.clone()
+        };
+
+        let usage = calculate_process_cpu(&previous, &current, 100);
+
+        assert!((usage - 30.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn zero_system_delta_returns_zero_process_cpu() {
+        let process = ProcessInfo {
+            pid: 1,
+            name: "test".to_string(),
+            state: 'S',
+            memory_bytes: 0,
+            cpu_time: 100,
+            command: "test".to_string(),
+        };
+
+        assert_eq!(calculate_process_cpu(&process, &process, 0), 0.0);
+    }
+
+    #[test]
+    fn decreasing_process_cpu_returns_zero() {
+        let previous = ProcessInfo {
+            pid: 1,
+            name: "test".to_string(),
+            state: 'S',
+            memory_bytes: 0,
+            cpu_time: 200,
+            command: "test".to_string(),
+        };
+
+        let current = ProcessInfo {
+            cpu_time: 100,
+            ..previous.clone()
+        };
+
+        assert_eq!(calculate_process_cpu(&previous, &current, 100), 0.0);
+    }
+}
+
