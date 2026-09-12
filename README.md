@@ -81,3 +81,15 @@ LinuxPulse is a systems-focused portfolio project for understanding Linux teleme
 
 ### Processes
 ![LinuxPulse processes](docs/screenshots/dashboard-processes.png)
+
+## Current Status
+
+LinuxPulse is currently a working end-to-end Linux telemetry dashboard.
+
+- 21 backend tests passing
+- CPU, memory, disk, network, thermal, process, GPU, and systemd telemetry
+- Rule-based system insights
+- REST and WebSocket APIs
+- Automatic WebSocket reconnect handling
+- Live React dashboard
+- Dashboard screenshots included in the repository
