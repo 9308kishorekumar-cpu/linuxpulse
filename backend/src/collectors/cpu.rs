@@ -41,3 +41,43 @@ pub fn calculate_cpu_usage(previous: CpuSample, current: CpuSample) -> f64 {
 
     (1.0 - (idle_delta as f64 / total_delta as f64)) * 100.0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_valid_cpu_sample() {
+        let sample = read_total_cpu();
+
+        assert!(sample.total > 0);
+        assert!(sample.idle <= sample.total);
+    }
+
+    #[test]
+    fn calculates_cpu_usage() {
+        let previous = CpuSample {
+            total: 100,
+            idle: 40,
+        };
+        let current = CpuSample {
+            total: 200,
+            idle: 80,
+        };
+
+        let usage = calculate_cpu_usage(previous, current);
+
+        assert!((usage - 60.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn zero_delta_returns_zero_usage() {
+        let sample = CpuSample {
+            total: 100,
+            idle: 40,
+        };
+
+        assert_eq!(calculate_cpu_usage(sample, sample), 0.0);
+    }
+}
+
