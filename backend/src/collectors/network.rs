@@ -65,3 +65,30 @@ pub fn read_network_samples() -> Vec<NetworkSample> {
 
     interfaces
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_network_samples() {
+        let samples = read_network_samples();
+
+        assert!(!samples.is_empty());
+
+        for sample in samples {
+            assert!(!sample.name.is_empty());
+        }
+    }
+
+    #[test]
+    fn reads_interface_addresses() {
+        let addresses = read_interface_addresses();
+
+        for (name, address) in addresses {
+            assert!(!name.is_empty());
+            assert!(!address.is_empty());
+        }
+    }
+}
+
